@@ -1,7 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+struct Preke {
+    string pav;
+    uint kaina;
+    uint likutis;
+}
+
+// pozicija čia = item
+struct Pozicija {
+    uint prekesID;
+    uint kiekis;
+    uint vntKaina;
+}
+
+// užsakymo būsena
+enum Busena {
+    Neuzsakyta,
+    Uzsakyta,
+    Patvirtinta,
+    Pristatyta, // kurjerio pristatymo patvirtinimas
+    Baigta, // kai klientas patvirtina gavimą
+    Atsaukta
+}
+
+struct Uzsakymas {
+    address pirkejas;
+    address kurjeris;
+    Pozicija[] pozicijos;
+    uint suma; // bendra užsakymo suma
+    Busena busena;
+    uint sukurimoData;
+}
+
 contract PrekiuPirkimas {
+    mapping(uint => Preke) public prekes; // pardavėjo visų prekių sąrašas (bus)
+    mapping(uint => Uzsakymas) private uzsakymai; // visi esami užsakymai
+
+    // KA AST ZEMMAIS — WĪRST TIKRINT TURĪWUNS
+
     // dalyviai
     address public pardavejas; // = kontrakto savininkas
     address public pirkejas;
@@ -12,15 +49,6 @@ contract PrekiuPirkimas {
     uint public kaina;
 
     // užsakymo būsena
-    enum Busena {
-        Neuzsakyta,
-        Uzsakyta,
-        Patvirtinta,
-        Pristatyta, // kurjerio pristatymo patvirtinimas
-        Baigta, // kai klientas patvirtina gavimą
-        Atsaukta
-    }
-
     Busena public busena;
 
     // kontraktan sumokėta suma (wei'ais)
