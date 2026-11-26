@@ -73,6 +73,10 @@ contract PrekiuPirkimas {
     // FUNKCIJOS
 
     function pirktPreke() external payable {
+        require(busena == Busena.Neuzsakyta, unicode"Prekė jau užsakyta");
+        require(msg.sender != pardavejas, unicode"Pardavėjas pirkti negali");
+        require(msg.value == kaina, unicode"Neatitinkanti mokėjimo suma"); // !!
+
         pirkejas = msg.sender;
         sumoketaSuma = msg.value;
         busena = Busena.Uzsakyta;
@@ -81,6 +85,9 @@ contract PrekiuPirkimas {
     }
 
     function patvirtintUzsakyma(address _kurjeris) external TikPardavejas {
+        require(busena == Busena.Uzsakyta, unicode"Negalima būsena");
+        require(_kurjeris != address(0), unicode"Negalimas kurjeris");
+
         kurjeris = _kurjeris;
         busena = Busena.Patvirtinta;
 
@@ -88,12 +95,16 @@ contract PrekiuPirkimas {
     }
 
     function patvirtintPristatyma() external TikKurjeris {
+        require(busena == Busena.Patvirtinta, unicode"Negalima būsena");
+
         busena = Busena.Pristatyta;
 
         emit PristatymasPatvirtintas();
     }
 
     function patvirtintGavima() external TikPirkejas {
+        require(busena == Busena.Pristatyta, unicode"Prekė nepristatyta");
+
         busena = Busena.Baigta;
 
         emit UzsakymasUzbaigtas();
@@ -101,6 +112,7 @@ contract PrekiuPirkimas {
 
     function atsauktUzsakyma() external TikPirkejas /** o pardavėjas? */ {
         require(busena == Busena.Uzsakyta, unicode"Negalima atšaukti užsakymo");
+
         busena = Busena.Atsaukta;
 
         emit UzsakymasAtsauktas();
