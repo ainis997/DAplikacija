@@ -35,6 +35,14 @@ contract PrekiuPirkimas {
         busena = Busena.Neuzsakyta;
     }
 
+    // ĮVYKIAI
+
+    event PrekeNupirkta(address indexed pirkejas, uint suma);
+    event UzsakymasPatvirtintas(address indexed kurjeris);
+    event PristatymasPatvirtintas();
+    event GavimasPatvirtintas();
+    event UzsakymasAtsauktas();
+
     // MODIFIERIAI
 
     modifier TikPardavejas() {
@@ -67,24 +75,34 @@ contract PrekiuPirkimas {
         pirkejas = msg.sender;
         sumoketaSuma = msg.value;
         busena = Busena.Uzsakyta;
+
+        emit PrekeNupirkta(pirkejas, sumoketaSuma);
     }
 
     function patvirtintUzsakyma(address _kurjeris) external TikPardavejas {
         kurjeris = _kurjeris;
         busena = Busena.Patvirtinta;
+
+        emit UzsakymasPatvirtintas(kurjeris);
     }
 
     function patvirtintPristatyma() external TikKurjeris {
         busena = Busena.Pristatyta;
+
+        emit PristatymasPatvirtintas();
     }
 
     function patvirtintGavima() external TikPirkejas {
         busena = Busena.Gauta;
         // pardavėjui išmokėt pinigus
+
+        emit GavimasPatvirtintas();
     }
 
     function atsauktUzsakyma() external TikPirkejas /** o pardavėjas? */ {
         busena = Busena.Atsaukta;
         // pirkėjui išmokėt pinigus
+
+        emit UzsakymasAtsauktas();
     }
 }
