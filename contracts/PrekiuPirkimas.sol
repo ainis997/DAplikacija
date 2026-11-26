@@ -17,8 +17,7 @@ contract PrekiuPirkimas {
         Uzsakyta,
         Patvirtinta,
         Pristatyta, // kurjerio pristatymo patvirtinimas
-        Gauta, // kliento gavimo patvirtinimas
-        Baigta,
+        Baigta, // kai klientas patvirtina gavimą
         Atsaukta
     }
 
@@ -40,8 +39,10 @@ contract PrekiuPirkimas {
     event PrekeNupirkta(address indexed pirkejas, uint suma);
     event UzsakymasPatvirtintas(address indexed kurjeris);
     event PristatymasPatvirtintas();
-    event GavimasPatvirtintas();
+    event UzsakymasUzbaigtas();
     event UzsakymasAtsauktas();
+    event MokejimasIvykdytas();
+    event GrazinimasIvykdytas(address indexed pirkejas, uint suma);
 
     // MODIFIERIAI
 
@@ -93,16 +94,41 @@ contract PrekiuPirkimas {
     }
 
     function patvirtintGavima() external TikPirkejas {
-        busena = Busena.Gauta;
-        // pardavėjui išmokėt pinigus
+        busena = Busena.Baigta;
 
-        emit GavimasPatvirtintas();
+        emit UzsakymasUzbaigtas();
     }
 
     function atsauktUzsakyma() external TikPirkejas /** o pardavėjas? */ {
+        require(busena == Busena.Uzsakyta, unicode"Negalima atšaukti užsakymo");
         busena = Busena.Atsaukta;
-        // pirkėjui išmokėt pinigus
 
         emit UzsakymasAtsauktas();
+    }
+
+    function igytMokejima() external TikPardavejas {
+        require(busena == Busena.Baigta, unicode"Užsakymas dar nebaigtas");
+        require(sumoketaSuma > 0, unicode"Nėra įgyjamo mokėjimo");
+
+        uint pasiimtinaSuma = sumoketaSuma;
+        sumoketaSuma = 0; // nunulinam, kad pardavėjas negalėtų darkart pasiimt pinigų
+
+        (bool arPavyko, ) = payable(pardavejas).call{value: pasiimtinaSuma}("");
+        require(arPavyko, unicode"Mokėjimas nepavyko");
+
+        emit MokejimasIvykdytas();
+    }
+
+    function grazintMokejima() external TikPirkejas {
+        require(busena == Busena.Atsaukta, unicode"Užsakymas nėra atšauktas");
+        require(sumoketaSuma > 0, unicode"Nėra ką grąžinti");
+
+        uint grazintinaSuma = sumoketaSuma;
+        sumoketaSuma = 0; // nunulinam, kad pirkėjas negalėtų darkart pasgrųžint pinigų
+
+        (bool arPavyko, ) = payable(pirkejas).call{value: grazintinaSuma}("");
+        require(arPavyko, unicode"Lėšų grąžinimas nepavyko");
+
+        emit GrazinimasIvykdytas(pirkejas, grazintinaSuma);
     }
 }
