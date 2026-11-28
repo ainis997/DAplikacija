@@ -37,32 +37,20 @@ contract PrekiuPirkimas {
     mapping(uint => Preke) public prekes; // pardavėjo visų prekių sąrašas (bus)
     mapping(uint => Uzsakymas) private uzsakymai; // visi esami užsakymai
 
-    // KA AST ZEMMAIS — WĪRST TIKRINT TURĪWUNS
+    uint public prekesIdSkaitliukas = 1; // skaičiuosma nuo 1; 0 gali reikšt neesamą įrašą
+    uint public uzsakymoIdSkaitliukas = 1; // skaičiuosma nuo 1; 0 gali reikšt neesamą įrašą
 
-    // dalyviai
     address public pardavejas; // = kontrakto savininkas
-    address public pirkejas;
-    address public kurjeris;
-
-    // prekės duomenys
-    string public prekesPav;
-    uint public kaina;
-
-    // užsakymo būsena
-    Busena public busena;
-
-    // kontraktan sumokėta suma (wei'ais)
-    uint public sumoketaSuma;
 
     // vykdomas diegiant kontraktą blockchainan
-    constructor(string memory _prekesPav, uint _kaina) {
+    constructor() {
         pardavejas = msg.sender;
-        prekesPav = _prekesPav;
-        kaina = _kaina;
-        busena = Busena.Neuzsakyta;
     }
 
     // ĮVYKIAI
+
+    event PrekePrideta(uint indexed prekesID);
+    event PrekeAtnaujinta(uint indexed prekesID);
 
     event PrekeNupirkta(address indexed pirkejas, uint suma);
     event UzsakymasPatvirtintas(address indexed kurjeris);
@@ -82,23 +70,53 @@ contract PrekiuPirkimas {
         _; // čia reiškia, kad nuo čia toliau eis modifikuotos fjos kodas (jei viskas ok)
     }
 
-    modifier TikPirkejas() {
-        require(
-            msg.sender == pirkejas,
-            unicode"Funkciją gali kviesti tik pirkėjas."
-        );
-        _;
-    }
-
-    modifier TikKurjeris() {
-        require(
-            msg.sender == kurjeris,
-            unicode"Funkciją gali kviesti tik kurjeris."
-        );
-        _;
+    modifier UzsakymasEgzistuoja(uint uzsakymoID) {
+        // pabaigtina
     }
 
     // FUNKCIJOS
+
+    // PREKIŲ VALDYMAS
+
+    function pridetPreke(
+        string memory pav,
+        uint kaina,
+        uint likutis
+    ) external TikPardavejas returns (uint) {
+        require(bytes(pav).length > 0, unicode"Nenurodytas prekės pavadinimas");
+        require(kaina > 0, unicode"Kaina turi būti teigiama");
+        // likutis gali būt ir 0
+
+        uint id = prekesIdSkaitliukas;
+        prekesIdSkaitliukas++;
+
+        prekes[id] = Preke(pav, kaina, likutis); // pridedam prekę
+
+        emit PrekePrideta(id);
+
+        return id;
+    }
+
+    function atnaujintPreke(
+        uint prekesID,
+        string memory pav,
+        uint kaina,
+        uint likutis
+    ) external TikPardavejas {
+        require(
+            prekesId > 0 && prekesID < prekesIdSkaitliukas,
+            unicode"Prekė neegzistuoja"
+        );
+        require(bytes(pav).length > 0, unicode"Nenurodytas prekės pavadinimas");
+        require(kaina > 0, unicode"Kaina turi būti teigiama");
+
+        Preke storage p = prekes[prekesID]; // su storage gaunam, kad p — nuoroda tan mappingo elementan (prekėn)
+        p.pav = pav;
+        p.kaina = kaina;
+        p.likutis = likutis;
+
+        emit PrekeAtnaujinta(prekesID);
+    }
 
     function pirktPreke() external payable {
         require(busena == Busena.Neuzsakyta, unicode"Prekė jau užsakyta");
