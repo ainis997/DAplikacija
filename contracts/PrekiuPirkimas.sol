@@ -79,7 +79,11 @@ contract PrekiuPirkimas {
     }
 
     modifier UzsakymasEgzistuoja(uint uzsakymoID) {
-        // pabaigtina
+        require(
+            uzsakymoID > 0 && uzsakymoID < uzsakymoIdSkaitliukas,
+            unicode"Užsakymas neegzistuoja"
+        );
+        // tikrinam tokiu būdu (jis tinkamas, nes ir atšauktas užsakymas yra laikomas), nors teor. galima būtų tikrint užsakymų mappingą, bet sudėtinga
     }
 
     // FUNKCIJOS
