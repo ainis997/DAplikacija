@@ -29,6 +29,7 @@ struct Uzsakymas {
     address kurjeris;
     Pozicija[] pozicijos;
     uint suma; // bendra užsakymo suma
+    uint sumoketaSuma;
     Busena busena;
     uint sukurimoData;
 }
@@ -52,7 +53,11 @@ contract PrekiuPirkimas {
     event PrekePrideta(uint indexed prekesID);
     event PrekeAtnaujinta(uint indexed prekesID);
 
-    event PrekeNupirkta(address indexed pirkejas, uint suma);
+    event UzsakymasSukurtas(
+        uint indexed uzsakymoID,
+        address indexed pirkejas,
+        uint suma
+    );
     event UzsakymasPatvirtintas(address indexed kurjeris);
     event PristatymasPatvirtintas();
     event UzsakymasUzbaigtas();
@@ -87,8 +92,7 @@ contract PrekiuPirkimas {
         require(kaina > 0, unicode"Kaina turi būti teigiama");
         // likutis gali būt ir 0
 
-        uint id = prekesIdSkaitliukas;
-        prekesIdSkaitliukas++;
+        uint id = prekesIdSkaitliukas++;
 
         prekes[id] = Preke(pav, kaina, likutis); // pridedam prekę
 
@@ -118,16 +122,61 @@ contract PrekiuPirkimas {
         emit PrekeAtnaujinta(prekesID);
     }
 
-    function pirktPreke() external payable {
-        require(busena == Busena.Neuzsakyta, unicode"Prekė jau užsakyta");
+    // užsakymo sukūrimas
+
+    function pirktPrekes(
+        uint[] calldata prekiuID,
+        uint[] calldata kiekiai
+    ) external payable {
         require(msg.sender != pardavejas, unicode"Pardavėjas pirkti negali");
-        require(msg.value == kaina, unicode"Neatitinkanti mokėjimo suma"); // !!
+        require(prekiuID.length > 0, unicode"Tuščias užsakymas");
+        require(
+            prekiuID.length == kiekiai.length,
+            unicode"Nesutampa prekių ID ir kiekių masyvų ilgiai"
+        );
 
-        pirkejas = msg.sender;
-        sumoketaSuma = msg.value;
-        busena = Busena.Uzsakyta;
+        uint id = uzsakymoIdSkaitliukas++;
+        Uzsakymas storage u = uzsakymai[id]; // naujas užsakymas
 
-        emit PrekeNupirkta(pirkejas, sumoketaSuma);
+        u.pirkejas = msg.sender;
+        u.busena = Busena.Uzsakyta;
+        u.sukurimoData = block.timestamp; // = bloko timestampas sekundėm nuo Unix epochos pradžios
+
+        uint bendraSuma = 0; // čia dėl u.suma
+
+        // dėl u.pozicijos
+        for (uint i = 0; i < prekiuID.length; i++) {
+            uint prekesID = prekiuID[i];
+            uint kiekis = kiekiai[i];
+
+            require(
+                prekesID > 0 && prekesID < prekesIdSkaitliukas,
+                unicode"Prekė neegzistuoja"
+            );
+            require(kiekis > 0, unicode"Kiekis turi būti teigiamas");
+
+            Preke storage p = prekes[prekesID]; // pointeris ton prekėn prekių mappinge
+
+            // tikrinam likutį
+            require(p.likutis >= kiekis, unicode"Nepakanka prekių likučio");
+
+            uint vntKaina = p.kaina;
+            bendraSuma += vntKaina * kiekis;
+
+            // sumažinam prekės likutį (JEI UŽSAKYMAS KAIP NORS ANULIUOSIS, SUGRĄŽINSIM)
+            p.likutis -= kiekis;
+
+            // išsaugom pozicijos duomenis
+            u.pozicijos.push(Pozicija(prekesID, kiekis, vntKaina));
+        }
+
+        // tikrinam ar mokėjimas tinkamas
+        require(msg.value == bendraSuma, unicode"Neatitinkanti mokėjimo suma");
+
+        u.suma = bendraSuma;
+        u.sumoketaSuma = msg.value;
+
+        emit UzsakymasSukurtas(id, msg.sender, bendraSuma);
     }
 
     function patvirtintUzsakyma(address _kurjeris) external TikPardavejas {
