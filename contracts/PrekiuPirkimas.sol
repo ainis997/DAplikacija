@@ -58,7 +58,10 @@ contract PrekiuPirkimas {
         address indexed pirkejas,
         uint suma
     );
-    event UzsakymasPatvirtintas(address indexed kurjeris);
+    event UzsakymasPatvirtintas(
+        uint indexed uzsakymoID,
+        address indexed kurjeris
+    );
     event PristatymasPatvirtintas();
     event UzsakymasUzbaigtas();
     event UzsakymasAtsauktas();
@@ -179,14 +182,24 @@ contract PrekiuPirkimas {
         emit UzsakymasSukurtas(id, msg.sender, bendraSuma);
     }
 
-    function patvirtintUzsakyma(address _kurjeris) external TikPardavejas {
-        require(busena == Busena.Uzsakyta, unicode"Negalima būsena");
-        require(_kurjeris != address(0), unicode"Negalimas kurjeris");
+    function patvirtintUzsakyma(
+        uint uzsakymoID,
+        address kurjeris
+    ) external TikPardavejas UzsakymasEgzistuoja(uzsakymoID) {
+        Uzsakymas storage u = uzsakymai[uzsakymoID];
 
-        kurjeris = _kurjeris;
-        busena = Busena.Patvirtinta;
+        require(u.busena == Busena.Uzsakyta, unicode"Negalima užsakymo būsena");
+        require(
+            kurjeris != address(0) &&
+                kurjeris != u.pirkejas &&
+                kurjeris != pardavejas,
+            unicode"Negalimas kurjeris"
+        );
 
-        emit UzsakymasPatvirtintas(kurjeris);
+        u.kurjeris = kurjeris;
+        u.busena = Busena.Patvirtinta;
+
+        emit UzsakymasPatvirtintas(uzsakymoID, kurjeris);
     }
 
     function patvirtintPristatyma() external TikKurjeris {
